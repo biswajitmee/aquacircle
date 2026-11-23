@@ -1,0 +1,58 @@
+{
+  "name": "aquacircle",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack && node scripts/prepare-standalone.mjs && node scripts/build-worker.mjs",
+    "start": "node --env-file-if-exists=.env.local scripts/start.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:all": "npm run lint && npm run typecheck && npm test && npm run test:e2e",
+    "mail:dev": "node scripts/mail-capture.mjs",
+    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
+    "worker": "tsx --env-file=.env.local scripts/worker.ts",
+    "retention": "tsx --env-file=.env.local scripts/retention.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.17",
+    "@gsap/react": "2.1.2",
+    "@hookform/resolvers": "7.0.8",
+    "gsap": "3.15.1",
+    "lucide-react": "1.78.0",
+    "next": "16.4.6",
+    "nodemailer": "10.6.1",
+    "pg": "8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-hook-form": "7.92.0",
+    "sharp": "0.35.5",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.65.1",
+    "@types/node": "26.6.6",
+    "@types/nodemailer": "8.0.2",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "autoprefixer": "10.7.0",
+    "esbuild": "0.28.2",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.6",
+    "mailparser": "3.15.0",
+    "postcss": "8.5.33",
+    "smtp-server": "3.21.7",
+    "tailwindcss": "3.4.19",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "vitest": "4.1.12"
+  }
+}
