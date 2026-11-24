@@ -24,6 +24,9 @@ export default function LocationMap({ initial, recenter, gps, onMoveStart, onSel
       center: [initial.latitude, initial.longitude], zoom: 18, minZoom: 3, maxZoom: 20,
       maxBounds: [[-85, -180], [85, 180]], maxBoundsViscosity: 1,
       zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false,
+      // ResizeObserver handles both viewport and dialog changes. Avoid Leaflet's
+      // delayed window-resize moveend event surviving a dialog unmount.
+      trackResize: false,
       inertia: false, keyboardPanDelta: 40, zoomControl: false,
       scrollWheelZoom: "center", doubleClickZoom: "center", touchZoom: "center",
       attributionControl: false,
@@ -40,14 +43,26 @@ export default function LocationMap({ initial, recenter, gps, onMoveStart, onSel
     tiles.on("loading", () => { failed = false; callbacks.current.onReady(false); });
     tiles.on("tileerror", () => { failed = true; callbacks.current.onReady(false); });
     tiles.on("load", () => callbacks.current.onReady(!failed));
+    let resizing = false;
     map.on("movestart", () => callbacks.current.onMoveStart());
     map.on("moveend", () => {
+      // A layout resize preserves the selected point and any manually edited
+      // address; it is not a customer's request to choose a different pin.
+      if (resizing) return;
       const center = map.getCenter();
       callbacks.current.onSelect({ latitude: center.lat, longitude: center.lng });
     });
-    const resize = new ResizeObserver(() => map.invalidateSize({ animate: false, pan: true, debounceMoveend: true }));
+    const resize = new ResizeObserver(() => {
+      if (instance.current !== map) return;
+      resizing = true;
+      try { map.invalidateSize({ animate: false, pan: true }); }
+      finally { resizing = false; }
+    });
     resize.observe(element.current);
-    return () => { resize.disconnect(); map.remove(); instance.current = null; circle.current = null; };
+    return () => {
+      resize.disconnect(); instance.current = null;
+      map.remove(); map.off(); tiles.off(); circle.current = null;
+    };
     // The map is constructed once per dialog; recentering has its own effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

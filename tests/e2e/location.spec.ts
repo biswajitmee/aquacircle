@@ -368,3 +368,21 @@ test("closing the booking form discards pending GPS and cancelling adjustment pr
   await picker.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog.getByRole("link", { name: "Check in Google Maps" })).toHaveAttribute("href", href!);
 });
+
+test("resizing then confirming cleans up delayed map callbacks", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await mockLocation(page); await reverseAddress(page);
+  const dialog = await openForm(page);
+  const picker = await openPicker(page, dialog);
+  await expect(picker.getByLabel("Selected address (editable)")).toHaveValue(address);
+  await picker.getByLabel("Selected address (editable)").fill("QA manually corrected entrance");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(picker.getByLabel("Selected address (editable)")).toHaveValue("QA manually corrected entrance");
+  await picker.getByRole("button", { name: "Confirm Pin Location" }).click();
+  // Leaflet 1.9 schedules resize moveend callbacks 200 ms later; exercise teardown.
+  await page.waitForTimeout(350);
+  expect(errors).toEqual([]);
+  await expect(dialog.locator(".location-status")).toContainText("Location Confirmed");
+  await expect(dialog.getByLabel("Service Location (Optional)")).toHaveValue("QA manually corrected entrance");
+});
