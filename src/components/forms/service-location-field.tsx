@@ -1,9 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { LocateFixed, LoaderCircle } from "lucide-react";
-import { coordinatesSchema, locationError, mapsLink, type CapturedLocation, type ServiceLocation } from "@/lib/service-location";
+import dynamic from "next/dynamic";
+import { CircleCheck, LocateFixed, LoaderCircle } from "lucide-react";
+import { coordinatesSchema, locationError, mapsLink, type CapturedLocation, type GpsPosition, type ServiceLocation } from "@/lib/service-location";
+import { LocationDetails } from "./location-details";
+import type { PickerStart } from "./location-picker";
 
-type Draft = Omit<CapturedLocation, "confirmed"> & { geocoded: boolean };
+const LocationPicker = dynamic(() => import("./location-picker"), { ssr: false });
 
 export function ServiceLocationField({ id, pin, value, onChange, disabled, error }: {
   id: string;
@@ -13,56 +16,63 @@ export function ServiceLocationField({ id, pin, value, onChange, disabled, error
   disabled: boolean;
   error?: string;
 }) {
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [phase, setPhase] = useState<"idle" | "locating" | "address">("idle");
+  const [picker, setPicker] = useState<PickerStart | null>(null);
+  const [previousPin, setPreviousPin] = useState<CapturedLocation | null>(null);
+  const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState("");
   const generation = useRef(0);
   const pending = useRef(false);
-  const lookup = useRef<AbortController | null>(null);
   const lastPin = useRef(pin);
+  const lastValue = useRef(value);
   const input = useRef<HTMLInputElement>(null);
 
   function cancelRequest() {
     generation.current++;
     pending.current = false;
-    lookup.current?.abort();
-    lookup.current = null;
+    setLocating(false);
   }
-  useEffect(() => () => {
-    generation.current++;
-    lookup.current?.abort();
-  }, []);
+  useEffect(() => () => { generation.current++; }, []);
+  useEffect(() => {
+    const previous = lastValue.current;
+    lastValue.current = value;
+    if (previous === value) return;
+    cancelRequest();
+    // The legacy Address field is kept in sync with this field by EnquiryForm.
+    if (previous && previous.source !== "manual" && value?.source === "manual") {
+      setPreviousPin(previous);
+      setMessage("Address changed. Reconfirm your pin for this address, or submit with a manual address only.");
+    }
+  }, [value]);
   useEffect(() => {
     if (lastPin.current === pin) return;
     lastPin.current = pin;
-    const hadLocation = draft || value || pending.current;
+    const hadLocation = picker || value || previousPin || pending.current;
     cancelRequest();
-    setPhase("idle");
     if (hadLocation) {
-      setDraft(null);
+      setPicker(null);
+      setPreviousPin(null);
       onChange(null);
       setMessage("PIN code changed. Please enter or capture your service location again.");
     }
-  }, [pin, draft, value, onChange]);
+  }, [pin, picker, value, previousPin, onChange]);
   useEffect(() => {
     if (!disabled) return;
     cancelRequest();
-    setPhase("idle");
-    setDraft(null);
+    setPicker(null);
   }, [disabled]);
 
   function edit(address: string) {
-    const wasDetected = !!draft || value?.source === "browser" || pending.current;
     cancelRequest();
-    setPhase("idle");
-    setDraft(null);
-    onChange(address.trim() ? { source: "manual", address, geocoded: draft?.geocoded || value?.geocoded } : null);
-    if (wasDetected) setMessage("Address edited. Previous GPS coordinates were removed; Maps will use this address.");
+    if (value && value.source !== "manual") {
+      setPreviousPin(value);
+      setMessage("Address changed. Reconfirm your pin for this address, or submit with a manual address only.");
+    }
+    onChange(address.trim() ? { source: "manual", address, details: value?.details } : null);
   }
   function clear() {
     cancelRequest();
-    setPhase("idle");
-    setDraft(null);
+    setPicker(null);
+    setPreviousPin(null);
     onChange(null);
     setMessage("Service location cleared. You can leave this field empty.");
     input.current?.focus();
@@ -76,106 +86,70 @@ export function ServiceLocationField({ id, pin, value, onChange, disabled, error
     cancelRequest();
     const request = generation.current;
     pending.current = true;
-    setDraft(null);
-    if (value?.source === "browser") onChange(null);
-    setPhase("locating");
+    setLocating(true);
     setMessage("Detecting your location…");
     const fail = (code: number) => {
       if (request !== generation.current) return;
-      pending.current = false;
-      setPhase("idle");
+      cancelRequest();
       setMessage(locationError(code));
     };
     try {
-      navigator.geolocation.getCurrentPosition(async (position) => {
+      // One fresh reading per click. No watcher continues after the picker closes.
+      navigator.geolocation.getCurrentPosition(position => {
         if (request !== generation.current) return;
         const { latitude, longitude, accuracy } = position.coords;
         if (!coordinatesSchema.safeParse({ latitude, longitude }).success || !Number.isFinite(accuracy) || accuracy < 0) {
-          fail(2);
-          return;
+          fail(2); return;
         }
-        const captured: Draft = {
-          source: "browser", latitude, longitude, accuracy, pin, geocoded: false,
-          address: `GPS ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
-        };
-        onChange(null);
-        setDraft(captured);
-        setPhase("address");
-        setMessage("Location detected. Looking up the address…");
-        const controller = new AbortController();
-        lookup.current = controller;
-        const timeout = window.setTimeout(() => controller.abort(), 6500);
-        let address: string | null = null;
-        try {
-          const response = await fetch("/api/location/reverse", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ latitude, longitude }),
-            signal: controller.signal, cache: "no-store",
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.provider === "geoapify" && typeof data.address === "string" && data.address.trim() && data.address.length <= 500) address = data.address.trim();
-          }
-        } catch {
-          // Keep the position; do not log customer data or provider responses.
-        } finally {
-          window.clearTimeout(timeout);
-        }
-        if (request !== generation.current) return;
-        lookup.current = null;
-        pending.current = false;
-        setPhase("idle");
-        setDraft({ ...captured, address: address || captured.address, geocoded: !!address });
-        setMessage(address
-          ? "Please check the detected address and confirm the location for your visit."
-          : "Location detected, but an address could not be found. Confirm this position or enter your address manually.");
-      }, (error) => fail(error.code), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
-    } catch {
-      fail(2);
-    }
+        const gps: GpsPosition = { latitude, longitude, accuracy };
+        cancelRequest();
+        setPicker({ position: gps, gps, details: value?.details });
+        setMessage("");
+      }, error => fail(error.code), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    } catch { fail(2); }
   }
-  function confirm() {
-    if (!draft || pending.current || disabled) return;
-    onChange({ ...draft, confirmed: true });
-    setDraft(null);
-    setMessage("Location confirmed for this visit. You can still edit or clear it.");
+  function adjust() {
+    const captured = value && value.source !== "manual" ? value : previousPin;
+    if (!captured || disabled) return;
+    cancelRequest();
+    setPicker({ position: captured, gps: null, address: value?.address, geocoded: value?.geocoded, details: value?.details });
   }
-  const captured = draft || (value?.source === "browser" ? value : null);
-  const accuracy = captured ? Math.max(1, Math.round(captured.accuracy)) : null;
-  const helpId = `${id}-help`;
-  const statusId = `${id}-status`;
-  return (
-    <div className="field service-location-field">
-      <label htmlFor={id}>Service Location <span>(Optional)</span></label>
-      <div className="location-input">
-        <input
-          ref={input} id={id} name="serviceLocation" type="text"
-          value={draft?.address ?? value?.address ?? ""}
-          onChange={(event) => edit(event.target.value)}
-          placeholder="Enter your address or use current location"
-          autoComplete="street-address" maxLength={500} disabled={disabled}
-          aria-invalid={!!error} aria-describedby={`${helpId} ${statusId}${error ? ` ${id}-error` : ""}`}
-        />
-        <button type="button" className="location-detect" onClick={detect}
-          aria-label="Use current location" title="Use current location"
-          disabled={disabled || phase !== "idle"} aria-busy={phase !== "idle"}>
-          {phase === "idle" ? <LocateFixed size={20} aria-hidden="true" /> : <LoaderCircle className="spin" size={20} aria-hidden="true" />}
-        </button>
-      </div>
-      <p id={helpId} className="location-help">Use your current location for easier technician navigation.</p>
-      <p className="location-help">With your permission, coordinates are used to look up an address. Confirm them below to include them with your request.</p>
-      <div id={statusId} className="location-status" role="status" aria-live="polite">
-        {message && <p>{message}</p>}
-        {accuracy !== null && <p>Location detected — accuracy approximately {accuracy} metres. Please check your address and building entrance.</p>}
-      </div>
-      {(draft?.geocoded || value?.geocoded) && <p className="location-attribution">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></p>}
-      {(draft || value || phase !== "idle") && <div className="location-actions">
-        {draft && <button className="text-button" type="button" disabled={disabled || phase !== "idle"} onClick={confirm}>Confirm this location</button>}
-        {value && <a href={mapsLink(value)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Check in Google Maps</a>}
-        <button className="text-button" type="button" onClick={clear} disabled={disabled}>Clear location</button>
-      </div>}
-      {draft && <p className="location-help">This detected location will not be included in your service request until you confirm it.</p>}
-      {error && <span id={`${id}-error`} className="field-error">{error}</span>}
+  const captured = value && value.source !== "manual" ? value : null;
+  return <div className="field service-location-field">
+    <label htmlFor={id}>Service Location <span>(Optional)</span></label>
+    <div className="location-input">
+      <input ref={input} id={id} name="serviceLocation" type="text" value={value?.address ?? ""}
+        onChange={event => edit(event.target.value)} placeholder="Enter your address or use current location"
+        autoComplete="street-address" maxLength={500} disabled={disabled}
+        aria-invalid={!!error} aria-describedby={`${id}-help ${id}-status${error ? ` ${id}-error` : ""}`} />
+      <button type="button" className="location-detect" onClick={detect} aria-label="Use current location" title="Use current location"
+        disabled={disabled || locating} aria-busy={locating}>
+        {locating ? <LoaderCircle className="spin" size={20} aria-hidden="true" /> : <LocateFixed size={20} aria-hidden="true" />}
+      </button>
     </div>
-  );
+    <p id={`${id}-help`} className="location-help">Use your current location, then move the map pin to your building entrance. Location is optional.</p>
+    <p className="location-help">Map areas and selected coordinates are sent to Geoapify for maps and address lookup. Only a pin you confirm is included with your request.</p>
+    <div id={`${id}-status`} className="location-status" role="status" aria-live="polite">
+      {message && <p>{message}</p>}
+      {captured && <>
+        <p className="location-confirmed"><CircleCheck size={18} aria-hidden="true" /> Location Confirmed</p>
+        <p>GPS reported accuracy radius: {captured.accuracy} metres. Your confirmed pin is the navigation destination.</p>
+      </>}
+    </div>
+    {value?.geocoded && <p className="location-attribution">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer">Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></p>}
+    {(value || locating || previousPin) && <div className="location-actions">
+      {(captured || previousPin) && <button className="text-button" type="button" onClick={adjust} disabled={disabled}>{captured ? "Adjust map pin" : "Reconfirm pin"}</button>}
+      {value && <a href={mapsLink(value)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Check in Google Maps</a>}
+      <button className="text-button" type="button" onClick={clear} disabled={disabled}>Clear location</button>
+    </div>}
+    {value && <LocationDetails id={`${id}-details`} value={value.details} disabled={disabled}
+      onChange={details => onChange({ ...value, details })} />}
+    {picker && !disabled && <LocationPicker id={`${id}-picker`} start={picker} pin={pin}
+      onCancel={() => { setPicker(null); setMessage("Map selection cancelled. Your previous service location is unchanged."); }}
+      onConfirm={location => {
+        cancelRequest(); onChange(location); setPicker(null); setPreviousPin(null);
+        setMessage("Your selected pin is confirmed for this visit.");
+      }} />}
+    {error && <span id={`${id}-error`} className="field-error">{error}</span>}
+  </div>;
 }

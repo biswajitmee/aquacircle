@@ -1127,6 +1127,22 @@ textarea:focus-visible {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+.location-confirmed {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--teal);
+  font-weight: 700;
+  margin-block: 8px;
+}
+.location-details { margin-top: 14px; padding-top: 12px; border-top: 1px solid #cee0d6; }
+.location-details summary { cursor: pointer; font-size: .875rem; min-height: 44px; padding-block: 10px; }
+.location-details summary span { font-weight: 400; }
+.location-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.location-details-grid > :last-child { grid-column: 1 / -1; }
+@media (max-width: 480px) {
+  .location-details-grid { grid-template-columns: 1fr; }
+}
 .optional-details summary {
   cursor: pointer;
   font-size: 14px;

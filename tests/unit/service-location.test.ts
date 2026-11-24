@@ -12,6 +12,33 @@ const enquiry: EnquiryInput = { name: "QA Location", mobile: "9000000000", pin: 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
 describe("optional service location", () => {
+  it("uses the customer-selected pin and carries access details through both mail transports", () => {
+    const selected: CapturedLocation = { ...location, source: "map", latitude: 22.573, longitude: 88.364,
+      details: { flat: "QA 2B", building: "QA Tower", floor: "2", landmark: "QA gate", entrance: "<b>Side door</b>" } };
+    const parsed = enquirySchema.parse({ ...enquiry, location: selected });
+    const fields = netlifyFormData(parsed, "12345678-1234-4123-8123-123456789abc", new Date());
+    expect(fields.get("locationSource")).toBe("GPS + Customer-Confirmed Map Pin");
+    expect(new URL(fields.get("googleMaps")!).searchParams.get("destination")).toBe("22.573,88.364");
+    expect(fields.get("flat")).toBe("QA 2B");
+    expect(fields.get("entrance")).toBe("<b>Side door</b>");
+    const email = emailContent("AC-QA", parsed, new Date());
+    expect(email.text).toContain("Confirmed Latitude: 22.573");
+    expect(email.text).toContain("Building: QA Tower");
+    expect(email.text).toContain("Entrance Instructions: <b>Side door</b>");
+    expect(email.html).toContain("&lt;b&gt;Side door&lt;/b&gt;");
+    expect(email.html).not.toContain("<b>Side door</b>");
+  });
+  it("rejects unconfirmed map pins, changed PINs and oversized access details", () => {
+    expect(enquirySchema.safeParse({ ...enquiry, location: { ...location, source: "map", confirmed: false } }).success).toBe(false);
+    expect(enquirySchema.safeParse({ ...enquiry, pin: "700002", location: { ...location, source: "map" } }).success).toBe(false);
+    expect(enquirySchema.safeParse({ ...enquiry, location: { ...location, source: "map", details: { entrance: "x".repeat(501) } } }).success).toBe(false);
+    expect(locationFields({ ...enquiry, location: { ...location, source: "map", confirmed: false } as unknown as CapturedLocation }).googleMaps).toBe("");
+    expect(enquirySchema.safeParse({ ...enquiry, address: "Different address", location: { ...location, source: "map" } }).success).toBe(false);
+    expect(locationFields({ ...enquiry, address: "Different address", location: { ...location, source: "map" } }).latitude).toBe("");
+  });
+  it("does not relabel older GPS-only confirmations as map-selected pins", () => {
+    expect(locationFields({ ...enquiry, location }).locationSource).toBe("Browser Geolocation");
+  });
   it("keeps location optional and does not invent a Maps destination", () => {
     expect(enquirySchema.safeParse(enquiry).success).toBe(true);
     expect(enquirySchema.safeParse({ ...enquiry, location: null }).success).toBe(true);
@@ -58,13 +85,13 @@ describe("optional service location", () => {
     expect(fields.get("longitude")).toBe(String(location.longitude));
     expect(fields.get("serviceLocation")).toBe(location.address);
     expect(fields.get("googleMaps")).toBe(mapsLink(location));
-    expect(fields.get("serviceLocationDetails")).toContain("SERVICE LOCATION DETAILS");
-    expect(fields.get("serviceLocationDetails")).toContain(`Google Maps:\n${mapsLink(location)}`);
+    expect(fields.get("serviceLocationDetails")).toContain("SERVICE LOCATION");
+    expect(fields.get("serviceLocationDetails")).toContain(`Google Maps Navigation:\n${mapsLink(location)}`);
   });
   it("extends SMTP text and HTML safely without replacing existing details", () => {
     const email = emailContent("AC-QA", { ...enquiry, location: { ...location, address: "QA <script>address</script>", geocoded: true } }, new Date());
-    expect(email.text).toContain(`GPS Latitude: ${location.latitude}`);
-    expect(email.text).toContain("Location Accuracy: 18.25 metres");
+    expect(email.text).toContain(`Confirmed Latitude: ${location.latitude}`);
+    expect(email.text).toContain("GPS Accuracy: 18.25 metres");
     expect(email.text).toContain("Location Source: Browser Geolocation");
     expect(email.text).toContain("Geoapify");
     expect(email.html).toContain("OPEN CUSTOMER LOCATION IN GOOGLE MAPS");

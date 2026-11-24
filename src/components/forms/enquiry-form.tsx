@@ -51,6 +51,8 @@ export function EnquiryForm({
   const {
     register,
     control,
+    getValues,
+    setValue,
     handleSubmit,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<EnquiryInput>({
@@ -228,7 +230,10 @@ export function EnquiryForm({
             id={`${id}-location`}
             pin={currentPin}
             value={field.value}
-            onChange={field.onChange}
+            onChange={location => {
+              field.onChange(location);
+              setValue("address", location?.address || "", { shouldDirty: true });
+            }}
             disabled={isSubmitting || pending}
             error={fieldState.error ? "Please check or clear your service location." : undefined}
           />
@@ -302,7 +307,12 @@ export function EnquiryForm({
             <div className="field">
               <label htmlFor={`${id}-address`}>Address</label>
               <input
-                {...register("address")}
+                {...register("address", { onChange: event => {
+                  const address = event.target.value as string;
+                  setValue("location", address.trim() ? {
+                    source: "manual", address, details: getValues("location")?.details,
+                  } : null, { shouldDirty: true });
+                } })}
                 {...accessibility("address")}
                 autoComplete="street-address"
                 placeholder="Your service address"

@@ -71,8 +71,12 @@ export const enquirySchema = z
   })
   .strict()
   .refine(
-    (data) => data.location?.source !== "browser" || data.location.pin === data.pin,
+    (data) => !data.location || data.location.source === "manual" || data.location.pin === data.pin,
     { message: "The PIN code changed. Please capture your location again.", path: ["location"] },
+  )
+  .refine(
+    (data) => data.location?.source !== "map" || !data.address || data.address === data.location.address,
+    { message: "The address changed. Please reconfirm your map pin.", path: ["location"] },
   );
 export type EnquiryInput = z.infer<typeof enquirySchema>;
 export type EnquirySource = EnquiryInput["source"];

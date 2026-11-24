@@ -46,7 +46,7 @@ test("mobile booking fits the viewport with scrollable optional fields", async (
     .locator(".hero-buttons")
     .getByRole("button", { name: "Request a visit" })
     .click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.locator("dialog.booking-dialog");
   await dialog.locator("summary").click();
   const bounds = await dialog.boundingBox();
   expect(bounds?.width).toBeLessThanOrEqual(350);
@@ -154,7 +154,7 @@ test("every service card preselects its service and restores focus", async ({
   ];
   for (let i = 0; i < 6; i++) {
     await cards.nth(i).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.locator("dialog.booking-dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog.getByLabel("Service *", { exact: true })).toHaveValue(
       ids[i],
@@ -170,7 +170,7 @@ test("booking validation and focus stay in the modal", async ({ page }) => {
     .locator(".hero-buttons")
     .getByRole("button", { name: "Request a visit" })
     .click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.locator("dialog.booking-dialog");
   await dialog.getByRole("button", { name: "Send service request" }).click();
   await expect(dialog.getByText("Please enter your name.")).toBeVisible();
   await expect(
@@ -195,7 +195,7 @@ test("failed submission keeps customer details for retry", async ({ page }) => {
   await page
     .getByRole("button", { name: "Book Routine service & cleaning" })
     .click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.locator("dialog.booking-dialog");
   await dialog.getByLabel("Name *", { exact: true }).fill("QA Retry");
   await dialog.getByLabel("Mobile number *", { exact: true }).fill(mobile());
   await dialog.getByLabel("PIN code *", { exact: true }).fill("700001");
@@ -213,6 +213,7 @@ test("successful real enquiry reaches local SMTP capture", async ({
   request,
 }) => {
   test.skip(nativeForms, "Netlify Forms uses its own notification service.");
+  await page.route("**/api/location/tiles/**", route => route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64") }));
   // Synthetic public test point; no real customer/device location is collected.
   await page.context().grantPermissions(["geolocation"]);
   await page.context().setGeolocation({ latitude: 22.572645, longitude: 88.363892, accuracy: 20 });
@@ -223,15 +224,16 @@ test("successful real enquiry reaches local SMTP capture", async ({
   await page
     .getByRole("button", { name: "Book Routine service & cleaning" })
     .click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.locator("dialog.booking-dialog");
   await dialog
     .getByLabel("Name *", { exact: true })
     .fill("AquaCircle QA Customer");
   await dialog.getByLabel("Mobile number *", { exact: true }).fill(mobile());
   await dialog.getByLabel("PIN code *", { exact: true }).fill("700001");
   await dialog.getByRole("button", { name: "Use current location" }).click();
-  await expect(dialog.getByRole("button", { name: "Confirm this location" })).toBeEnabled();
-  await dialog.getByRole("button", { name: "Confirm this location" }).click();
+  await expect(page.getByRole("dialog", { name: "Confirm Your Service Location" }).getByRole("button", { name: "Confirm Pin Location" })).toBeEnabled();
+  await expect(page.getByLabel("Selected address (editable)")).toHaveValue("QA public test location, Kolkata");
+  await page.getByRole("dialog", { name: "Confirm Your Service Location" }).getByRole("button", { name: "Confirm Pin Location" }).click();
   await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", { name: "Send service request" }).click();
   await expect(dialog.getByText("Your service request has been received successfully. Our AquaCircle team will contact you shortly.")).toBeVisible(
@@ -251,10 +253,10 @@ test("successful real enquiry reaches local SMTP capture", async ({
   const inbox = await request.get("http://localhost:8025/api/messages");
   const messages = await inbox.json() as { text: string; html: string }[];
   const notification = messages.find(message => message.text.includes(reference));
-  expect(notification?.text).toContain("SERVICE LOCATION DETAILS");
-  expect(notification?.text).toContain("GPS Latitude: 22.572645");
-  expect(notification?.text).toContain("GPS Longitude: 88.363892");
-  expect(notification?.text).toContain("Location Accuracy: 20 metres");
+  expect(notification?.text).toContain("SERVICE LOCATION");
+  expect(notification?.text).toContain("Confirmed Latitude: 22.572645");
+  expect(notification?.text).toContain("Confirmed Longitude: 88.363892");
+  expect(notification?.text).toContain("GPS Accuracy: 20 metres");
   expect(notification?.text).toContain("https://www.google.com/maps/dir/?api=1&destination=22.572645%2C88.363892");
   expect(notification?.html).toContain("OPEN CUSTOMER LOCATION IN GOOGLE MAPS");
 });
