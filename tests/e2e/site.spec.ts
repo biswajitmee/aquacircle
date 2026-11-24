@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+const nativeForms = process.env.PLAYWRIGHT_ENQUIRY_PROVIDER === "netlify";
+const submissionEndpoint = nativeForms ? "/__forms.html" : "/api/enquiries";
 test("mobile swipes change slides while vertical gestures preserve scrolling", async ({
   page,
 }) => {
@@ -182,7 +184,7 @@ test("booking validation and focus stay in the modal", async ({ page }) => {
   }
 });
 test("failed submission keeps customer details for retry", async ({ page }) => {
-  await page.route("**/api/enquiries", (route) =>
+  await page.route(`**${submissionEndpoint}`, (route) =>
     route.fulfill({
       status: 503,
       contentType: "application/json",
@@ -200,7 +202,7 @@ test("failed submission keeps customer details for retry", async ({ page }) => {
   await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", { name: "Send service request" }).click();
   await expect(dialog.getByRole("alert")).toContainText(
-    "Your details are still here",
+    "Unable to submit your request right now. Please try again.",
   );
   await expect(dialog.getByLabel("Name *", { exact: true })).toHaveValue(
     "QA Retry",
@@ -210,6 +212,7 @@ test("successful real enquiry reaches local SMTP capture", async ({
   page,
   request,
 }) => {
+  test.skip(nativeForms, "Netlify Forms uses its own notification service.");
   await page.goto("/");
   await page
     .getByRole("button", { name: "Book Routine service & cleaning" })
@@ -222,7 +225,7 @@ test("successful real enquiry reaches local SMTP capture", async ({
   await dialog.getByLabel("PIN code *", { exact: true }).fill("700001");
   await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", { name: "Send service request" }).click();
-  await expect(dialog.getByText("Your request has been received.")).toBeVisible(
+  await expect(dialog.getByText("Your service request has been received successfully. Our AquaCircle team will contact you shortly.")).toBeVisible(
     { timeout: 30000 },
   );
   const reference = await dialog.locator(".reference strong").innerText();

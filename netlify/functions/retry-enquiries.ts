@@ -3,7 +3,9 @@ import { mailConfigurationReady } from "../../src/lib/server/email";
 import { deliverEnquiry } from "../../src/lib/server/enquiries";
 
 export default async function retryEnquiries() {
-  if (!process.env.DATABASE_URL || !mailConfigurationReady()) {
+  // Netlify Forms owns new hosted submissions; keep retries for any legacy database.
+  if (!process.env.DATABASE_URL) return;
+  if (!mailConfigurationReady()) {
     throw new Error("Configure PostgreSQL and SMTP in Netlify before retrying enquiries.");
   }
 

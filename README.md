@@ -4,26 +4,35 @@ Next.js App Router, TypeScript, Tailwind **3.4**, GSAP, React Hook Form and Zod.
 
 ## Deploy on Netlify
 
-1. In Netlify, import the GitHub repository `biswajitmee/aquacircle` and select branch `main`.
-2. Keep the base directory at the repository root. `netlify.toml` supplies **build command `npm run build:netlify`**, **publish directory `.next`**, and **Node.js 22**. Netlify installs dependencies from `package-lock.json` and automatically uses its current Next.js adapter. Do not use a static export or drag-and-drop upload: bookings need the server API.
-3. Before deployment, add the values listed in [`.env.netlify.example`](.env.netlify.example) under **Project configuration > Environment variables**. Make them available to **Builds and Functions** (or all scopes). The example deliberately contains no database or SMTP credentials. Do not import the local development `.env.local`: its local database and mail server cannot run on Netlify.
+1. Use the **existing** Netlify project connected to GitHub repository `biswajitmee/aquacircle`, branch `main`. Pushes to this branch should trigger its configured automatic deployment; do not create a second site.
+2. Keep the base directory at the repository root. `netlify.toml` supplies **build command `npm run build:netlify`**, **publish directory `.next`**, **Node.js 22**, and `NEXT_PUBLIC_ENQUIRY_PROVIDER=netlify`. Netlify installs dependencies from `package-lock.json` and automatically uses its current Next.js adapter.
+3. Before deployment, review [`.env.netlify.example`](.env.netlify.example) under **Project configuration > Environment variables**. Make `SITE_URL` available to **Builds and Functions** (or all scopes). Netlify Forms does not need PostgreSQL, SMTP credentials or `RATE_LIMIT_SECRET`. Do not import the local development `.env.local` into production.
 4. Set `SITE_URL` to the exact live HTTPS origin, without a trailing slash. Initially use your actual `https://YOUR-SITE.netlify.app` address; after connecting `aquacircle.in`, set `SITE_URL=https://aquacircle.in` and redeploy. It controls canonical URLs, sitemap links and accepted booking-request origins. Redirect other domains to this primary domain in Netlify.
-5. Deploy. Open `/api/health` and check for HTTP 200 with `{"status":"ready"}`. Submit a test enquiry and confirm that the business inbox receives it; the health endpoint checks configuration/database connectivity, not actual SMTP delivery.
+5. Enable Forms detection and notifications using the steps below. After deployment, `/api/health` reports `status: "managed_by_netlify"`. That reports the selected provider only; it does **not** verify form detection, storage or email delivery.
 
-Required for working booking forms: a hosted **PostgreSQL** database with TLS, a real **SMTP** provider, a verified `EMAIL_FROM`, `BUSINESS_NOTIFICATION_EMAIL`, a private random `RATE_LIMIT_SECRET`, and `LOCAL_DEVELOPMENT=0`. Prefer the database provider's pooled connection string for serverless use. The application creates its tables/indexes on first connection, so the database role must have those permissions. Configure backups with the database provider. The public pages build without these secrets, but bookings return unavailable until they are configured.
+### Enable service-request notifications
 
-Netlify runs `retry-enquiries` once a minute to recover one pending/failed notification per invocation, and `enquiry-retention` daily at 03:00 UTC to apply the existing retention policy. These replace the continuously running Node worker **on Netlify**. In Netlify's Functions panel, check that both schedules appear and use **Run now** to verify them after configuration. Scheduled executions run only for published deployments. Keep production credentials limited to the production deploy context; previews need separate test services if you want working forms there.
+1. Open the existing AquaCircle project in Netlify and go to **Forms > Enable form detection** (or **Forms > Form detection > Enable form detection**).
+2. Deploy the updated `main` branch. If detection was enabled after the deploy, use **Deploys > Trigger deploy > Deploy site** to process the same source again.
+3. In **Forms**, confirm that **`aquacircle-service-request`** is listed. Its deploy-time definition is `public/__forms.html`; the React form submits a URL-encoded POST to `/__forms.html`, following the current Next.js adapter's supported integration.
+4. Go to **Forms > Submission notifications > Add notification > Email notification**. Choose **`aquacircle-service-request`**, set the recipient to **`info.aquacircle@gmail.com`**, and save. If the UI calls the action **Add email notification**, use that action. The submitted `subject` field sets `New AquaCircle Service Request — [Customer Name] — [Service Type]`; Netlify's supported email body lists the submitted fields.
+5. If the recipient shows **pending confirmation**, open the confirmation email in `info.aquacircle@gmail.com` and select **Confirm**. Some Netlify teams only allow active team-member email addresses until external-recipient confirmation is available; in that case, use this address for an active member of the existing team before adding it. Code in this repository cannot confirm ownership of the mailbox.
+6. Submit **one clearly labelled test request**, check **Forms > aquacircle-service-request > Verified submissions** (and Spam if necessary), then check Gmail Inbox/Spam for the matching reference and all fields. A successful browser response is not evidence that a notification reached the inbox.
+
+The hosted form preserves all fields and consent, includes both ISO and Kolkata submission timestamps, and stores a request ID/reference with each submission. Required-field, phone, PIN, service and date validation stays in the existing Zod/React Hook Form flow. Netlify performs its own server-side spam filtering and the `website` honeypot. The static registration page is marked `noindex` and is not in the sitemap. Repeated clicks are blocked while submitting; Netlify Forms does not guarantee deduplication after an ambiguous network failure. The retained request ID helps staff identify retries. Review retained submissions and mailbox copies in Netlify/Gmail; the database retention job does not delete Netlify Forms records.
+
+The older `/api/enquiries` PostgreSQL/SMTP integration remains available for localhost and standalone hosting. Without its mail/rate-limit configuration it intentionally returns 503, which caused the original hosted-form error. New Netlify submissions bypass that API. Existing `retry-enquiries` and `enquiry-retention` schedules are retained for any old database records and safely skip execution when `DATABASE_URL` is absent. Do not remove existing database credentials until any pending old requests are resolved.
 
 The existing server-rendered pages include titles/descriptions, canonical URLs, Open Graph metadata, local fonts, optimized images, `/robots.txt`, and `/sitemap.xml`. After connecting the final domain, verify that sitemap/canonical links use it and submit `/sitemap.xml` to Google Search Console. This preserves the site's SEO setup; search rankings are not guaranteed.
 
-Official references: [Next.js on Netlify](https://docs.netlify.com/build/frameworks/framework-setup-guides/nextjs/overview/), [runtime environment variables](https://docs.netlify.com/build/functions/environment-variables/), [scheduled functions](https://docs.netlify.com/build/functions/scheduled-functions/).
+Official references: [Next.js Forms integration](https://opennext.js.org/netlify/forms), [Forms setup](https://docs.netlify.com/manage/forms/setup/), [notification recipients and subjects](https://docs.netlify.com/manage/forms/notifications/).
 
 ## What belongs in Git
 
 | Keep in the repository | Reason |
 | --- | --- |
 | `src/`, including fonts and their license | Pages, styles, SEO metadata, booking APIs and application logic |
-| `public/` | Optimized images served by the website |
+| `public/` | Optimized images and static Netlify Forms registration |
 | `package.json`, `package-lock.json`, `.nvmrc` | Reproducible dependencies and Node version |
 | `next.config.ts`, `tsconfig.json`, Tailwind/PostCSS/ESLint configuration | Build configuration |
 | `netlify.toml`, `netlify/functions/` | Netlify build and scheduled delivery/retention |
@@ -51,7 +60,7 @@ npm run dev
 
 Website: http://localhost:3000. Local email capture: http://localhost:8025. Only synthetic test mail should be used with the development capture server; it sends nothing externally and its inbox is cleared when it stops.
 
-The default development database is durable embedded PostgreSQL (PGlite), stored in ignored `.data/aquacircle`. It is owned by one web process. Stop that process before running an operations command against the same PGlite directory. Production uses real PostgreSQL through `pg`, with the same SQL schema, durable delivery status and transactional claims. A separate ORM is unnecessary for the two-table schema.
+The default development database is durable embedded PostgreSQL (PGlite), stored in ignored `.data/aquacircle`. It is owned by one web process. Stop that process before running an operations command against the same PGlite directory. Standalone production uses real PostgreSQL through `pg`, with the same SQL schema, durable delivery status and transactional claims. Netlify production uses Netlify Forms instead.
 
 Optional Docker development dependencies:
 
@@ -75,6 +84,8 @@ npm start
 
 Browser tests require the local SMTP capture service running. Playwright starts/reuses the dev server. `PLAYWRIGHT_BASE_URL` selects a separately running production server. Tests use synthetic names and phone numbers and never send external email when using `.env.example`.
 
+To exercise the hosted Forms transport locally, use a maintained Node.js 22.13+ release and `npx netlify-cli dev --offline --no-open --functions tests/fixtures/netlify-functions`. Netlify Dev applies the `netlify.toml` provider setting. The explicitly selected local-only `submission-created` fixture captures the CLI's parsed submission event in ignored `.data/netlify-forms-qa/latest.json`; it sends no email and is outside the production functions directory. Run `npx playwright test tests/e2e/form-submission.spec.ts` with `PLAYWRIGHT_BASE_URL=http://localhost:8888`, `PLAYWRIGHT_ENQUIRY_PROVIDER=netlify`, and `PLAYWRIGHT_NETLIFY_DEV=1`. This verifies URL-encoded requests and local handling, not production form detection or Gmail delivery. Never point the full automated suite at production; it creates multiple synthetic requests. The normal `npm run dev` workflow continues to use the local API/SMTP capture.
+
 `npm run build` creates the standalone server, copies its public/static assets, and bundles database operations scripts. `npm start` reads `.env.local` when present; production supervisors should inject their own environment values, which take precedence. The standalone artifact is `.next/standalone`.
 
 For a separate production smoke test in PowerShell:
@@ -89,7 +100,7 @@ npm start
 
 Use a different PGlite directory from any running development process. Real production must use PostgreSQL with `LOCAL_DEVELOPMENT=0`.
 
-## Production configuration
+## Standalone Node.js / Docker production configuration
 
 Create a private `.env.production` using `.env.example` as a reference, or inject equivalent secrets from your hosting provider. Do not commit it.
 

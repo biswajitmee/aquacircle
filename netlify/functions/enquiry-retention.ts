@@ -5,9 +5,8 @@ import {
 } from "../../src/lib/server/database";
 
 export default async function enquiryRetention() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("Configure PostgreSQL in Netlify before running retention.");
-  }
+  // This job applies only to legacy PostgreSQL data, not the Netlify Forms inbox.
+  if (!process.env.DATABASE_URL) return;
 
   try {
     await applyRetention(

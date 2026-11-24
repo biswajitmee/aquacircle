@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -11,6 +11,13 @@ import {
   type EnquirySource,
 } from "@/lib/validation";
 import { serviceOptions, type ServiceId } from "@/content/services";
+import {
+  NETLIFY_FORM_ENDPOINT,
+  NETLIFY_FORM_NAME,
+  SUBMISSION_ERROR,
+  submitEnquiry,
+  usesNetlifyForms,
+} from "@/lib/enquiry-submission";
 export function EnquiryForm({
   service,
   pin = "",
@@ -28,8 +35,18 @@ export function EnquiryForm({
 }) {
   const [success, setSuccess] = useState<string | null>(null);
   const [failure, setFailure] = useState("");
-  const key = useRef<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const inFlight = useRef(false);
+  const completed = useRef(false);
+  const attempt = useRef<{
+    payload: string;
+    key: string;
+    submittedAt: Date;
+  } | null>(null);
   const result = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (success) result.current?.focus();
+  }, [success]);
   const {
     register,
     handleSubmit,
@@ -66,38 +83,36 @@ export function EnquiryForm({
     "aria-describedby": errors[field] ? `${id}-${field}-error` : undefined,
   });
   async function submit(values: EnquiryInput) {
+    if (inFlight.current || completed.current) return;
+    inFlight.current = true;
+    setPending(true);
     setFailure("");
     onBusy?.(true);
-    key.current ??= crypto.randomUUID();
     const abort = new AbortController();
     const timeout = window.setTimeout(() => abort.abort(), 25000);
     try {
-      const res = await fetch("/api/enquiries", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": key.current,
-        },
-        body: JSON.stringify(values),
-        signal: abort.signal,
-      });
-      const data = await res.json();
-      if (!res.ok || !data.reference) {
-        if (res.status === 400 || res.status === 422) key.current = null;
-        throw new Error(
-          data.error || "Your request could not be sent. Please try again.",
-        );
+      const payload = JSON.stringify(values);
+      if (attempt.current?.payload !== payload) {
+        attempt.current = {
+          payload,
+          key: crypto.randomUUID(),
+          submittedAt: new Date(),
+        };
       }
-      setSuccess(data.reference);
-      window.setTimeout(() => result.current?.focus(), 0);
-    } catch (err) {
-      setFailure(
-        err instanceof Error && err.name !== "AbortError"
-          ? err.message
-          : "We could not confirm receipt. Please retry; your request will not be duplicated.",
+      const reference = await submitEnquiry(
+        values,
+        attempt.current.key,
+        attempt.current.submittedAt,
+        abort.signal,
       );
+      completed.current = true;
+      setSuccess(reference);
+    } catch {
+      setFailure(SUBMISSION_ERROR);
     } finally {
       window.clearTimeout(timeout);
+      inFlight.current = false;
+      setPending(false);
       onBusy?.(false);
     }
   }
@@ -105,10 +120,10 @@ export function EnquiryForm({
     return (
       <div ref={result} className="form-success" role="status" tabIndex={-1}>
         <CircleCheck size={36} />
-        <h3>Your request has been received.</h3>
+        <h3>Thank you!</h3>
         <p>
-          We will contact you to confirm service availability and your
-          appointment.
+          Your service request has been received successfully. Our AquaCircle
+          team will contact you shortly.
         </p>
         <p className="reference">
           Reference: <strong>{success}</strong>
@@ -126,11 +141,16 @@ export function EnquiryForm({
     );
   return (
     <form
+      name={NETLIFY_FORM_NAME}
+      method="POST"
+      action={usesNetlifyForms ? NETLIFY_FORM_ENDPOINT : "/api/enquiries"}
       onSubmit={handleSubmit(submit)}
       noValidate
       data-dirty={isDirty}
+      aria-busy={isSubmitting || pending}
       className={`enquiry-form ${expanded ? "expanded" : ""}`}
     >
+      <input type="hidden" name="form-name" value={NETLIFY_FORM_NAME} />
       <div className="form-grid">
         <div className="field">
           <label htmlFor={`${id}-name`}>
@@ -321,8 +341,8 @@ export function EnquiryForm({
         </p>
       )}
       <div className="form-actions">
-        <button className="button" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? (
+        <button className="button" type="submit" disabled={isSubmitting || pending}>
+          {isSubmitting || pending ? (
             <>
               <LoaderCircle className="spin" size={18} />
               Sending request…
@@ -339,7 +359,7 @@ export function EnquiryForm({
             type="button"
             className="text-button"
             onClick={onCancel}
-            disabled={isSubmitting}
+            disabled={isSubmitting || pending}
           >
             Cancel
           </button>

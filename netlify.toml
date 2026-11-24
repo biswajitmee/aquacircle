@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  NEXT_PUBLIC_ENQUIRY_PROVIDER = "netlify"
 
 # Netlify automatically supplies the current Next.js/OpenNext adapter.
 # Runtime secrets belong in Netlify's environment settings, not this file.

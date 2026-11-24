@@ -10,7 +10,7 @@ export const policies = {
       },
       {
         title: "How your information is used",
-        text: "We use your details to review the enquiry, contact you, check service availability and arrange the requested work. Your enquiry is stored in our service database and included in a notification to the business. If enabled, an acknowledgement is sent to the email address you provided. Appointment preferences do not create a confirmed booking.",
+        text: "We use your details to review the enquiry, contact you, check service availability and arrange the requested work. Website requests are stored using Netlify Forms and included in business email notifications when configured. Appointment preferences do not create a confirmed booking.",
       },
       {
         title: "Service providers and access",
@@ -18,11 +18,11 @@ export const policies = {
       },
       {
         title: "Security and spam prevention",
-        text: "Requests are validated on the server. For abuse prevention, a short-lived, one-way keyed identifier derived from a mobile number and, where a trusted proxy is configured, a network address is stored. Raw network addresses are not stored in the enquiry database. Email credentials are kept on the server.",
+        text: "The form checks required contact details, service selection and consent before submission. Netlify applies its own spam filtering and processes requests using its hosting infrastructure. No email passwords or private API keys are included in the browser form. Access to stored requests and notifications is restricted through the hosting and email accounts.",
       },
       {
         title: "Retention",
-        text: "Handled enquiry records are scheduled for removal after the configured retention period, which defaults to 180 days. Unresolved delivery failures are retained for recovery and should be reviewed by the business. Backup copies follow the hosting operator’s retention arrangements.",
+        text: "Requests and email notifications remain in the hosting and business email accounts until they are removed through those services. You can request correction or deletion using the contact form. Copies retained by service providers follow their retention arrangements.",
       },
       {
         title: "Your enquiries and privacy requests",

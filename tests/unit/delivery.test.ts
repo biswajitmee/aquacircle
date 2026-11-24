@@ -167,7 +167,10 @@ describe("Email safety", () => {
     expect(email.html).toContain("&lt;img");
     expect(email.text).toContain(payload.problem);
     expect(email.text).toContain("PIN code: 700001");
-    expect(email.text).toContain("Source: service-card");
+    expect(email.text).toContain("Source: AquaCircle.in Website");
+    expect(email.text).toContain("Source location: service-card");
+    expect(email.text).toContain("Contact consent: Agreed");
+    expect(email.subject).toBe("New AquaCircle Service Request — QA Customer — Routine service & cleaning");
     expect(email.subject).toContain("Routine service");
   });
   it("escapes every HTML delimiter", () =>
