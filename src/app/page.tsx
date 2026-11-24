@@ -17,6 +17,7 @@ export default function Home() {
     "@type": "LocalBusiness",
     name: "AquaCircle",
     url: business.url,
+    logo: new URL("/images/brand/aquacircle-logo.png", business.url).href,
     description:
       "Water purifier installation, servicing, repairs and filter replacement enquiries for homes in Kolkata.",
     ...(business.phone ? { telephone: business.phone } : {}),

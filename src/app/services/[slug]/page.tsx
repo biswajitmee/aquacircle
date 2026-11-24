@@ -55,6 +55,7 @@ export default async function ServicePage({
           "@type": "Organization",
           name: "AquaCircle",
           url: business.url,
+          logo: new URL("/images/brand/aquacircle-logo.png", business.url).href,
         },
       },
       {

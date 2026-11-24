@@ -1,20 +1,17 @@
+import Image from "next/image";
 import Link from "next/link";
 export function BrandMark({ className = "" }: { className?: string }) {
   return (
-    <svg
+    <Image
+      src="/images/brand/aquacircle-mark.png"
       className={className}
-      viewBox="0 0 48 48"
-      fill="none"
+      width={256}
+      height={256}
+      alt=""
       aria-hidden="true"
-    >
-      <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M37 15C31 6 16 8 12 19c-4 12 9 22 20 16M40 25c-1 9-12 14-21 9C9 29 9 19 14 14M17 13c-1 10 12 18 22 13M8 24c5 9 16 11 25 8"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
+      loading="eager"
+      unoptimized
+    />
   );
 }
 export function Logo({ light = false }: { light?: boolean }) {
@@ -24,8 +21,29 @@ export function Logo({ light = false }: { light?: boolean }) {
       href="/"
       aria-label="AquaCircle home"
     >
-      <BrandMark />
-      <span>AquaCircle</span>
+      {light ? (
+        <Image
+          src="/images/brand/aquacircle-logo.webp"
+          className="brand-full"
+          width={440}
+          height={340}
+          alt="AquaCircle.in — Water purifier installation & servicing"
+          unoptimized
+        />
+      ) : (
+        <>
+          <BrandMark className="brand-symbol" />
+          <Image
+            src="/images/brand/aquacircle-wordmark.webp"
+            className="brand-wordmark"
+            width={672}
+            height={143}
+            alt="AquaCircle.in — Water purifier installation & servicing"
+            loading="eager"
+            unoptimized
+          />
+        </>
+      )}
     </Link>
   );
 }

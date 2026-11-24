@@ -265,19 +265,18 @@ textarea:focus-visible {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  color: var(--teal);
+  gap: 8px;
   flex-shrink: 0;
 }
-.brand svg {
-  width: 46px;
-  height: 46px;
+.brand-symbol {
+  width: 48px;
+  height: 48px;
+  mix-blend-mode: multiply;
 }
-.brand span {
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -1.4px;
-  line-height: 1;
+.brand-wordmark {
+  width: 184px;
+  height: auto;
+  mix-blend-mode: multiply;
 }
 .desktop-nav {
   display: flex;
@@ -1277,14 +1276,14 @@ textarea:focus-visible {
   padding-block: 48px 54px;
 }
 .brand-light {
-  color: white;
+  width: min(100%, 220px);
+  padding: 12px;
+  background: white;
+  border-radius: 12px;
 }
-.footer-brand .brand span {
-  font-size: 25px;
-}
-.footer-brand .brand svg {
-  width: 38px;
-  height: 38px;
+.brand-full {
+  width: 100%;
+  height: auto;
 }
 .footer-brand > p {
   font-size: 13px;
@@ -1379,7 +1378,8 @@ textarea:focus-visible {
   left: 40%;
   width: 240px;
   height: 240px;
-  color: #8adac2;
+  object-fit: contain;
+  border-radius: 50%;
   opacity: 0.035;
 }
 .page-intro {
@@ -1622,11 +1622,12 @@ textarea:focus-visible {
     gap: 18px;
     font-size: 12px;
   }
-  .brand span {
-    font-size: 27px;
+  .brand-wordmark {
+    width: 165px;
   }
-  .brand svg {
-    width: 40px;
+  .brand-symbol {
+    width: 44px;
+    height: 44px;
   }
   .header-inner {
     gap: 22px;
@@ -1700,12 +1701,6 @@ textarea:focus-visible {
   .footer-grid {
     gap: 25px;
     grid-template-columns: 1.15fr 1.2fr 1fr 0.8fr 1fr;
-  }
-  .footer-brand .brand span {
-    font-size: 23px;
-  }
-  .footer-brand .brand svg {
-    width: 30px;
   }
   .footer-grid li {
     font-size: 11px;
@@ -1953,13 +1948,12 @@ textarea:focus-visible {
   .header-inner {
     gap: 10px;
   }
-  .brand span {
-    font-size: 25px;
-    letter-spacing: -1.3px;
+  .brand-wordmark {
+    width: 158px;
   }
-  .brand svg {
-    width: 37px;
-    height: 37px;
+  .brand-symbol {
+    width: 40px;
+    height: 40px;
   }
   .brand {
     gap: 6px;
@@ -2451,12 +2445,6 @@ textarea:focus-visible {
     display: block;
     grid-column: 1/-1;
   }
-  .footer-brand .brand span {
-    font-size: 26px;
-  }
-  .footer-brand .brand svg {
-    width: 37px;
-  }
   .footer-brand > p {
     font-size: 12px;
     max-width: 300px;
@@ -2501,6 +2489,7 @@ textarea:focus-visible {
   .footer-watermark {
     left: 60%;
     width: 200px;
+    height: 200px;
   }
   .page-intro {
     padding-block: 38px 35px;
