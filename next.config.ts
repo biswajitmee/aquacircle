@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
-  output: "standalone",
+  // Netlify's adapter packages its own server; Docker uses standalone output.
+  output: process.env.NETLIFY === "true" ? undefined : "standalone",
   poweredByHeader: false,
   devIndicators: false,
   serverExternalPackages: ["pg", "@electric-sql/pglite", "nodemailer"],

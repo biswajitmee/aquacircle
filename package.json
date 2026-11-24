@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack && node scripts/prepare-standalone.mjs && node scripts/build-worker.mjs",
+    "build:netlify": "next build --webpack",
     "start": "node --env-file-if-exists=.env.local scripts/start.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

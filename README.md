@@ -1,6 +1,37 @@
 # AquaCircle
 
-Next.js App Router, TypeScript, Tailwind **3.4**, GSAP, React Hook Form and Zod. Prepared for conventional Node.js and Docker hosting. Nothing has been published and no DNS has been changed.
+Next.js App Router, TypeScript, Tailwind **3.4**, GSAP, React Hook Form and Zod. Prepared for Netlify, conventional Node.js and Docker hosting.
+
+## Deploy on Netlify
+
+1. In Netlify, import the GitHub repository `biswajitmee/aquacircle` and select branch `main`.
+2. Keep the base directory at the repository root. `netlify.toml` supplies **build command `npm run build:netlify`**, **publish directory `.next`**, and **Node.js 22**. Netlify installs dependencies from `package-lock.json` and automatically uses its current Next.js adapter. Do not use a static export or drag-and-drop upload: bookings need the server API.
+3. Before deployment, add the values listed in [`.env.netlify.example`](.env.netlify.example) under **Project configuration > Environment variables**. Make them available to **Builds and Functions** (or all scopes). The example deliberately contains no database or SMTP credentials. Do not import the local development `.env.local`: its local database and mail server cannot run on Netlify.
+4. Set `SITE_URL` to the exact live HTTPS origin, without a trailing slash. Initially use your actual `https://YOUR-SITE.netlify.app` address; after connecting `aquacircle.in`, set `SITE_URL=https://aquacircle.in` and redeploy. It controls canonical URLs, sitemap links and accepted booking-request origins. Redirect other domains to this primary domain in Netlify.
+5. Deploy. Open `/api/health` and check for HTTP 200 with `{"status":"ready"}`. Submit a test enquiry and confirm that the business inbox receives it; the health endpoint checks configuration/database connectivity, not actual SMTP delivery.
+
+Required for working booking forms: a hosted **PostgreSQL** database with TLS, a real **SMTP** provider, a verified `EMAIL_FROM`, `BUSINESS_NOTIFICATION_EMAIL`, a private random `RATE_LIMIT_SECRET`, and `LOCAL_DEVELOPMENT=0`. Prefer the database provider's pooled connection string for serverless use. The application creates its tables/indexes on first connection, so the database role must have those permissions. Configure backups with the database provider. The public pages build without these secrets, but bookings return unavailable until they are configured.
+
+Netlify runs `retry-enquiries` once a minute to recover one pending/failed notification per invocation, and `enquiry-retention` daily at 03:00 UTC to apply the existing retention policy. These replace the continuously running Node worker **on Netlify**. In Netlify's Functions panel, check that both schedules appear and use **Run now** to verify them after configuration. Scheduled executions run only for published deployments. Keep production credentials limited to the production deploy context; previews need separate test services if you want working forms there.
+
+The existing server-rendered pages include titles/descriptions, canonical URLs, Open Graph metadata, local fonts, optimized images, `/robots.txt`, and `/sitemap.xml`. After connecting the final domain, verify that sitemap/canonical links use it and submit `/sitemap.xml` to Google Search Console. This preserves the site's SEO setup; search rankings are not guaranteed.
+
+Official references: [Next.js on Netlify](https://docs.netlify.com/build/frameworks/framework-setup-guides/nextjs/overview/), [runtime environment variables](https://docs.netlify.com/build/functions/environment-variables/), [scheduled functions](https://docs.netlify.com/build/functions/scheduled-functions/).
+
+## What belongs in Git
+
+| Keep in the repository | Reason |
+| --- | --- |
+| `src/`, including fonts and their license | Pages, styles, SEO metadata, booking APIs and application logic |
+| `public/` | Optimized images served by the website |
+| `package.json`, `package-lock.json`, `.nvmrc` | Reproducible dependencies and Node version |
+| `next.config.ts`, `tsconfig.json`, Tailwind/PostCSS/ESLint configuration | Build configuration |
+| `netlify.toml`, `netlify/functions/` | Netlify build and scheduled delivery/retention |
+| `.env.example`, `.env.netlify.example` | Safe configuration templates only |
+| `scripts/`, `tests/`, `docs/`, `README.md`, `AGENTS.md` | Development, validation and operational instructions |
+| Docker files | Optional alternative hosting; Netlify does not use them |
+
+`.gitignore` excludes `node_modules/`, `.next/`, `dist/`, `out/`, `.netlify/`, generated `next-env.d.ts`, TypeScript caches, real `.env*` files, `.data/`, logs, test reports, screenshots, editor state and raw `assets/` artwork. Netlify recreates build output; the optimized images in `public/` are sufficient to run the site. Ignored artwork and QA artifacts can remain on your computer. To regenerate images, restore your local `assets/` source artwork first; it is not needed for `npm ci` or a production build. Earlier Git history may still contain artwork or reports committed before this ignore policy.
 
 ## Local development
 
@@ -80,7 +111,7 @@ The privacy/service/terms pages describe the implemented flow without inventing 
 
 `POST /api/enquiries` validates and limits the request, saves it durably, then returns HTTP 202 with a real reference. The response confirms receipt only. SMTP is attempted after the response. Failures remain `EMAIL_FAILED`, with exponential backoff and a recoverable delivery lease. The production worker retries every 30 seconds, up to ten attempts; exhausted records remain available for operational review. Stable SMTP Message-IDs and enquiry idempotency keys limit duplicates, but SMTP delivery is at least once: a process failure after provider acceptance can cause a duplicate notification.
 
-Run the worker alongside every production deployment:
+For Node.js/Docker hosting, run the worker alongside the web server. Netlify uses the scheduled functions above instead:
 
 ```powershell
 node --env-file=.env.production dist/operations/migrate.mjs
@@ -130,11 +161,11 @@ The 15 content routes are `/`, `/services`, six service detail pages, `/service-
 Additional endpoints: `/api/enquiries`, `/api/coverage`, `/api/health`, `/sitemap.xml`, `/robots.txt`, `/opengraph-image` and `/icon.svg`. Missing pages show a branded 404.
 
 - `docs/asset-mapping.md`: full inventory, source mapping, crops and image-generation prompts.
-- `assets/originals`: untouched reference artwork, excluded from public assets and Docker.
-- `assets/generated`: four illustrative service photographs, not claims about actual staff.
+- `assets/originals`: local-only untouched reference artwork, ignored by Git and excluded from public assets and Docker.
+- `assets/generated`: local-only illustrative service photographs, not claims about actual staff; ignored by Git.
 - `public/images`: optimized WebP files. Rebuild with `node scripts/prepare-assets.mjs`.
 - `src/app/fonts`: locally bundled Manrope Latin variable font and SIL Open Font License, loaded using `next/font/local`.
-- `artifacts/screenshots`: desktop/mobile, five slides, services, booking modal, navigation and footer captures.
+- `artifacts/screenshots`: local-only desktop/mobile, five slides, services, booking modal, navigation and footer captures; ignored by Git.
 
 Capture screenshots with `node scripts/screenshots.mjs`. The current preview URL is selected by `PLAYWRIGHT_BASE_URL`. Performance measurements are saved in `artifacts/performance`; they are local lab results, not field Core Web Vitals.
 

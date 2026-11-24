@@ -1,13 +1,37 @@
+# Dependencies and generated builds (Netlify installs/builds these).
 node_modules/
 .next/
+/out/
+/dist/
+.netlify/
+.vercel/
+next-env.d.ts
+*.tsbuildinfo
+
+# Private configuration, customer data and credentials.
 .env*
 !.env.example
+!.env.netlify.example
 .data/
+.data-audit.json
+*.pem
+*.key
+.aws/
+
+# Local QA output and source artwork. The website uses public/images/.
+/artifacts/
+/assets/
+/asset-contact-sheet.jpg
 test-results/
 playwright-report/
 /coverage/
-*.tsbuildinfo
 *.log
-.data-audit.json
-dist/
+
+# Workstation/editor files.
 .DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+.codex/
+.agents/

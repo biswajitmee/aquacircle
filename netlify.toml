@@ -1,0 +1,20 @@
+[build]
+  command = "npm run build:netlify"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Netlify automatically supplies the current Next.js/OpenNext adapter.
+# Runtime secrets belong in Netlify's environment settings, not this file.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[functions."retry-enquiries"]
+  schedule = "* * * * *"
+  external_node_modules = ["pg", "@electric-sql/pglite", "nodemailer"]
+
+[functions."enquiry-retention"]
+  schedule = "0 3 * * *"
+  external_node_modules = ["pg", "@electric-sql/pglite"]
