@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { serviceIds } from "@/content/services";
+import { serviceLocationSchema } from "@/lib/service-location";
 export const pinSchema = z
   .string()
   .regex(/^[1-9]\d{5}$/, "Enter a valid six-digit Indian PIN code.");
@@ -28,6 +29,7 @@ export const enquirySchema = z
     brand: z.string().trim().max(80).optional(),
     model: z.string().trim().max(100).optional(),
     address: z.string().trim().max(500).optional(),
+    location: serviceLocationSchema.nullable().optional(),
     preferredDate: z
       .string()
       .refine(
@@ -67,6 +69,10 @@ export const enquirySchema = z
       "faq",
     ]),
   })
-  .strict();
+  .strict()
+  .refine(
+    (data) => data.location?.source !== "browser" || data.location.pin === data.pin,
+    { message: "The PIN code changed. Please capture your location again.", path: ["location"] },
+  );
 export type EnquiryInput = z.infer<typeof enquirySchema>;
 export type EnquirySource = EnquiryInput["source"];

@@ -103,6 +103,7 @@ test("Netlify Dev parses a real URL-encoded form into its local submission event
   await dialog.getByLabel("Name *", { exact: true }).fill("AquaCircle Local Netlify QA");
   await dialog.getByLabel("Mobile number *", { exact: true }).fill("9000000000");
   await dialog.getByLabel("PIN code *", { exact: true }).fill("700001");
+  await dialog.getByLabel("Service Location (Optional)").fill("QA ONLY public test address, Kolkata");
   await dialog.getByLabel("What can we help with?").fill("LOCAL TEST ONLY: preserve filter + connection & details. No visit needed.");
   await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", { name: "Send service request" }).click();
@@ -122,5 +123,10 @@ test("Netlify Dev parses a real URL-encoded form into its local submission event
     problem: "LOCAL TEST ONLY: preserve filter + connection & details. No visit needed.",
     consent: "Agreed to be contacted about this request",
     source: "AquaCircle.in Website",
+    serviceLocation: "QA ONLY public test address, Kolkata",
+    latitude: "",
+    longitude: "",
+    locationSource: "Manually Entered",
+    googleMaps: "https://www.google.com/maps/search/?api=1&query=QA+ONLY+public+test+address%2C+Kolkata",
   });
 });

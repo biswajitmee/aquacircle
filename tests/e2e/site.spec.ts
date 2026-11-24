@@ -213,6 +213,12 @@ test("successful real enquiry reaches local SMTP capture", async ({
   request,
 }) => {
   test.skip(nativeForms, "Netlify Forms uses its own notification service.");
+  // Synthetic public test point; no real customer/device location is collected.
+  await page.context().grantPermissions(["geolocation"]);
+  await page.context().setGeolocation({ latitude: 22.572645, longitude: 88.363892, accuracy: 20 });
+  await page.route("**/api/location/reverse", route => route.fulfill({
+    json: { address: "QA public test location, Kolkata", provider: "geoapify" },
+  }));
   await page.goto("/");
   await page
     .getByRole("button", { name: "Book Routine service & cleaning" })
@@ -223,6 +229,9 @@ test("successful real enquiry reaches local SMTP capture", async ({
     .fill("AquaCircle QA Customer");
   await dialog.getByLabel("Mobile number *", { exact: true }).fill(mobile());
   await dialog.getByLabel("PIN code *", { exact: true }).fill("700001");
+  await dialog.getByRole("button", { name: "Use current location" }).click();
+  await expect(dialog.getByRole("button", { name: "Confirm this location" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Confirm this location" }).click();
   await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", { name: "Send service request" }).click();
   await expect(dialog.getByText("Your service request has been received successfully. Our AquaCircle team will contact you shortly.")).toBeVisible(
@@ -239,6 +248,15 @@ test("successful real enquiry reaches local SMTP capture", async ({
       { timeout: 20000 },
     )
     .toContain(reference);
+  const inbox = await request.get("http://localhost:8025/api/messages");
+  const messages = await inbox.json() as { text: string; html: string }[];
+  const notification = messages.find(message => message.text.includes(reference));
+  expect(notification?.text).toContain("SERVICE LOCATION DETAILS");
+  expect(notification?.text).toContain("GPS Latitude: 22.572645");
+  expect(notification?.text).toContain("GPS Longitude: 88.363892");
+  expect(notification?.text).toContain("Location Accuracy: 20 metres");
+  expect(notification?.text).toContain("https://www.google.com/maps/dir/?api=1&destination=22.572645%2C88.363892");
+  expect(notification?.html).toContain("OPEN CUSTOMER LOCATION IN GOOGLE MAPS");
 });
 test("PIN checker validates and never invents coverage", async ({ page }) => {
   await page.goto("/");

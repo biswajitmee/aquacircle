@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { ArrowRight, CircleCheck, LoaderCircle } from "lucide-react";
@@ -11,6 +11,7 @@ import {
   type EnquirySource,
 } from "@/lib/validation";
 import { serviceOptions, type ServiceId } from "@/content/services";
+import { ServiceLocationField } from "./service-location-field";
 import {
   NETLIFY_FORM_ENDPOINT,
   NETLIFY_FORM_NAME,
@@ -49,6 +50,7 @@ export function EnquiryForm({
   }, [success]);
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<EnquiryInput>({
@@ -62,6 +64,7 @@ export function EnquiryForm({
       brand: "",
       model: "",
       address: "",
+      location: null,
       preferredDate: "",
       preferredTime: "",
       problem: "",
@@ -70,6 +73,7 @@ export function EnquiryForm({
       source,
     },
   });
+  const currentPin = useWatch({ control, name: "pin" });
   const id = `form-${source}-${expanded ? "modal" : "inline"}`;
   const fieldError = (field: keyof EnquiryInput) =>
     errors[field] ? (
@@ -216,6 +220,20 @@ export function EnquiryForm({
           {fieldError("service")}
         </div>
       </div>
+      <Controller
+        name="location"
+        control={control}
+        render={({ field, fieldState }) => (
+          <ServiceLocationField
+            id={`${id}-location`}
+            pin={currentPin}
+            value={field.value}
+            onChange={field.onChange}
+            disabled={isSubmitting || pending}
+            error={fieldState.error ? "Please check or clear your service location." : undefined}
+          />
+        )}
+      />
       {expanded && (
         <details className="optional-details">
           <summary>

@@ -1,5 +1,6 @@
 import { serviceLabel } from "@/content/services";
 import type { EnquiryInput } from "@/lib/validation";
+import { locationFields } from "@/lib/service-location";
 
 export const NETLIFY_FORM_NAME = "aquacircle-service-request";
 export const NETLIFY_FORM_ENDPOINT = "/__forms.html";
@@ -35,6 +36,7 @@ export function netlifyFormData(
     brand: values.brand || "",
     model: values.model || "",
     address: values.address || "",
+    ...locationFields(values),
     preferredDate: values.preferredDate || "",
     preferredTime: values.preferredTime || "",
     problem: values.problem || "",

@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import type { EnquiryInput } from "@/lib/validation";
 import { serviceLabel } from "@/content/services";
 import { serviceRequestSubject } from "@/lib/enquiry-submission";
+import { locationFields } from "@/lib/service-location";
 export const escapeHtml = (value: string) =>
   value.replace(
     /[&<>"']/g,
@@ -15,6 +16,8 @@ export function emailContent(
   data: EnquiryInput,
   createdAt: Date,
 ) {
+  const location = locationFields(data);
+  const locationHtml = `<h2 style="font-size:18px;margin-top:24px">SERVICE LOCATION DETAILS</h2><p style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(location.serviceLocationDetails)}</p>${location.googleMaps ? `<p><a href="${escapeHtml(location.googleMaps)}" style="display:inline-block;background:#123f3b;color:#ffffff;padding:14px 18px;border-radius:6px;text-decoration:none">OPEN CUSTOMER LOCATION IN GOOGLE MAPS</a></p>` : ""}`;
   const fields = [
     ["Reference", reference],
     ["Name", data.name],
@@ -45,8 +48,8 @@ export function emailContent(
   ];
   return {
     subject: serviceRequestSubject(data.name, data.service),
-    text: `AquaCircle service enquiry\n\n${fields.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\nAppointment requires confirmation.`,
-    html: `<!doctype html><html><body style="margin:0;background:#f6f7f2;font-family:Arial,sans-serif;color:#142b29"><div style="max-width:640px;margin:24px auto;padding:30px"><h1 style="font-size:28px;color:#123f3b">AquaCircle</h1><h2 style="font-size:21px">New service enquiry</h2><table role="presentation" style="width:100%;border-collapse:collapse">${fields.map(([k, v]) => `<tr><th style="text-align:left;vertical-align:top;padding:12px 10px;border-bottom:1px solid #dcefe9;font-size:13px;width:30%">${escapeHtml(k)}</th><td style="padding:12px 10px;border-bottom:1px solid #dcefe9;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(v)}</td></tr>`).join("")}</table><p style="font-size:12px;margin-top:24px">Preferred dates and times are requests. Please contact the customer to confirm availability.</p></div></body></html>`,
+    text: `AquaCircle service enquiry\n\n${fields.map(([k, v]) => `${k}: ${v}`).join("\n")}\n\n${location.serviceLocationDetails}\n\nAppointment requires confirmation.`,
+    html: `<!doctype html><html><body style="margin:0;background:#f6f7f2;font-family:Arial,sans-serif;color:#142b29"><div style="max-width:640px;margin:24px auto;padding:30px"><h1 style="font-size:28px;color:#123f3b">AquaCircle</h1><h2 style="font-size:21px">New service enquiry</h2><table role="presentation" style="width:100%;border-collapse:collapse">${fields.map(([k, v]) => `<tr><th style="text-align:left;vertical-align:top;padding:12px 10px;border-bottom:1px solid #dcefe9;font-size:13px;width:30%">${escapeHtml(k)}</th><td style="padding:12px 10px;border-bottom:1px solid #dcefe9;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(v)}</td></tr>`).join("")}</table>${locationHtml}<p style="font-size:12px;margin-top:24px">Preferred dates and times are requests. Please contact the customer to confirm availability.</p></div></body></html>`,
   };
 }
 export function mailConfigurationReady() {

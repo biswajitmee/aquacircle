@@ -13,6 +13,10 @@ export const policies = {
         text: "We use your details to review the enquiry, contact you, check service availability and arrange the requested work. Website requests are stored using Netlify Forms and included in business email notifications when configured. Appointment preferences do not create a confirmed booking.",
       },
       {
+        title: "Optional service location",
+        text: "You can type a service address or choose to share your current location. We request browser location permission only after you select the location button; we do not continuously track you. When address lookup is enabled, the captured coordinates are sent securely to our server and Geoapify to resolve an address, even if you later choose not to submit the enquiry. You can review, correct or clear the result. Detected coordinates and accuracy are included with your request only after you select Confirm this location and submit the form. Editing an address removes the previous GPS destination; changing the PIN code clears the service location. Confirmed locations, manual addresses and Maps links are handled as customer information in Netlify Forms and business email for authorised staff arranging technician visits. Location is not saved in browser localStorage or sent to analytics. Opening a Google Maps link shares the selected destination with Google. Location may be approximate and may not identify the building entrance. You can request service without sharing a location.",
+      },
+      {
         title: "Service providers and access",
         text: "The website’s hosting, database and configured email providers process information needed to operate the enquiry service. Access is intended for authorised personnel handling enquiries and maintaining the service. The site does not include advertising trackers or sell enquiry information.",
       },

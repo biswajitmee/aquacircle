@@ -27,6 +27,25 @@ The existing server-rendered pages include titles/descriptions, canonical URLs, 
 
 Official references: [Next.js Forms integration](https://opennext.js.org/netlify/forms), [Forms setup](https://docs.netlify.com/manage/forms/setup/), [notification recipients and subjects](https://docs.netlify.com/manage/forms/notifications/).
 
+## Optional service location
+
+The existing forms now accept an optional service location. Location is requested only on a button click, with high accuracy, a 12-second timeout and no cached position. Customers can confirm or clear the detected position, or type an address. Unconfirmed GPS drafts are never submitted. Editing the address removes the GPS destination; changing the PIN clears the location. Late callbacks are ignored after edits, clearing, submission, a new attempt or modal closure. Existing address and enquiry fields remain available.
+
+Netlify Forms registers and stores `serviceLocation`, `latitude`, `longitude`, `locationAccuracy`, `locationSource`, `googleMaps` and a readable `serviceLocationDetails` summary. These fields appear in the existing native notification to `info.aquacircle@gmail.com`; the complete Google Maps URL is on its own line. Native Netlify email formatting is retained. Standalone SMTP notifications also include an HTML Maps button. Directions use only the confirmed customer coordinates; manual addresses use Google Maps search. Requests without a location say "Location not shared".
+
+### Enable address lookup without a paid plan
+
+1. Create a **Free** project at [Geoapify MyProjects](https://myprojects.geoapify.com/) and obtain its API key. No paid plan is required; do not enable billing or upgrade automatically.
+2. In the existing Netlify project, open **Project configuration > Environment variables > Add variable**. Name it `GEOAPIFY_API_KEY`, mark it secret where supported, and set the value for **Production**, available to **Functions** (or all scopes). Never use a `NEXT_PUBLIC_` prefix or commit the value. For local development only, set the same variable in ignored `.env.local` and restart the dev server.
+3. Redeploy the existing project after changing the production variable. Test with a clearly labelled public test position, not a customer's location. Keep the key private; browser-origin restrictions are not suitable for this server-to-server integration.
+4. Review the provider's usage dashboard and stay within the Free plan quota. The app makes one attempt per capture, times out after five seconds and throttles each server instance to one lookup per second. This is not a global quota limiter across serverless instances. Provider refusal or quota exhaustion safely falls back to GPS/manual input.
+
+`POST /api/location/reverse` accepts a small JSON body from the configured site origin. It sends only coordinates to Geoapify, returns only a formatted address, uses no-store responses and logs no request bodies, provider URLs or exceptions. It does not persist lookup data. Geoapify processes the lookup under its own privacy policy. Required Geoapify/OpenStreetMap attribution accompanies its results. No real location is used in automated tests; browser positions and geocoding responses are mocked. Google Maps links require no API key.
+
+If `GEOAPIFY_API_KEY` is missing, GPS capture, confirmation, email fields and navigation still work; the form shows readable coordinates and says the address could not be found. Automatic address lookup and actual Gmail delivery must be verified separately in production. Do not infer delivery from a local success message.
+
+References: [Geoapify reverse geocoding](https://apidocs.geoapify.com/docs/geocoding/reverse-geocoding/), [free-plan terms and attribution](https://www.geoapify.com/pricing/), [Google Maps URL format](https://developers.google.com/maps/documentation/urls/get-started).
+
 ## What belongs in Git
 
 | Keep in the repository | Reason |
